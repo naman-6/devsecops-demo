@@ -128,8 +128,8 @@ pipeline {
                     subject: "${jobName} - Build #${buildNumber} - ${pipelineStatus.toUpperCase()}",
                     body: body,
                     to: 'itsmenaman06@gmail.com',
-                    from: 'jenkins@example.com',
-                    replyTo: 'jenkins@example.com',
+                    from: 'naman.xy6@gmail.com',
+                    replyTo: 'naman.xy6@gmail.com',
                     mimeType: 'text/html',
                     attachmentsPattern: 'trivy-file-scan-report.html, trivy-docker-scan-report.html'
                 )
