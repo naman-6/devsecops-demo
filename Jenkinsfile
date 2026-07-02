@@ -36,25 +36,24 @@ pipeline {
             }
         }
         
-        stage('4. Run Unit Tests & Coverage') {
+
+	stage('4. Run Unit Tests & Coverage') {
             steps {
                 script {
                     echo 'Launching isolated Python container to execute pytest suite...'
-                    // DevSecOps Best Practice: Run tests inside an ephemeral container 
-                    // to prevent toolchain contamination on the host/Jenkins master.
                     sh '''
                         docker run --rm \
                         -v ${WORKSPACE}:/workspace \
                         -w /workspace \
                         python:3.11-slim \
-                        sh -c "pip install --no-cache-dir -r app/requirements.txt && pytest --cov=app --cov-report=xml:coverage.xml"
+                        sh -c "pip install --no-cache-dir -r app/requirements.txt && python -m pytest --cov=app --cov-report=xml:coverage.xml"
                     '''
                     echo 'Unit tests executed and coverage.xml report successfully generated!'
                 }
             }
         }
-        
-        stage('5. Static Code Analysis: SonarQube') {
+
+	stage('5. Static Code Analysis: SonarQube') {
             steps {
                 script {
                     echo 'Injecting code artifacts and coverage analytics into SonarQube...'
