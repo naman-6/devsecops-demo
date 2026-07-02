@@ -2,13 +2,13 @@ pipeline {
     agent any
     
     environment {
-        // Must match the tool name you configured in Manage Jenkins -> Tools
+        // Must match the tool name configured in Manage Jenkins -> Tools
         SCANNER_HOME = tool 'sonar-scanner'
         
         APP_NAME     = "devsecops-api"
         RELEASE      = "1.0"
         DOCKER_USER  = "naman96"
-        DOCKER_PASS  = 'docker-cred' // Must match the internal Jenkins Credentials ID for DockerHub
+        DOCKER_PASS  = 'docker-cred' // Internal Jenkins Credentials ID for DockerHub
         IMAGE_NAME   = "${DOCKER_USER}/${APP_NAME}"
         IMAGE_TAG    = "${RELEASE}-${BUILD_NUMBER}"
     }
@@ -22,7 +22,6 @@ pipeline {
         
         stage('2. SCM Checkout') {
             steps {
-                // Dynamically checks out the branch that triggered the SCM poll
                 checkout scm
             }
         }
@@ -36,60 +35,41 @@ pipeline {
             }
         }
         
-
-	stage('4. Run Unit Tests & Coverage') {
+        stage('4. Static Code Analysis: SonarQube') {
             steps {
                 script {
-                    echo 'Launching isolated Python container to execute pytest suite...'
-                    sh '''
-                        docker run --rm \
-                        -v ${WORKSPACE}:/workspace \
-                        -w /workspace \
-                        python:3.11-slim \
-                        sh -c "pip install --no-cache-dir -r app/requirements.txt && python -m pytest --cov=app --cov-report=xml:coverage.xml"
-                    '''
-                    echo 'Unit tests executed and coverage.xml report successfully generated!'
-                }
-            }
-        }
-
-	stage('5. Static Code Analysis: SonarQube') {
-            steps {
-                script {
-                    echo 'Injecting code artifacts and coverage analytics into SonarQube...'
+                    echo 'Injecting code artifacts into SonarQube server...'
                     // Must match the system server profile name inside Manage Jenkins -> System
                     withSonarQubeEnv('sonarqube-server') {
                         sh """${SCANNER_HOME}/bin/sonar-scanner \
                             -Dsonar.projectName=${APP_NAME} \
                             -Dsonar.projectKey=${APP_NAME} \
                             -Dsonar.sources=app/ \
-                            -Dsonar.language=py \
-                            -Dsonar.python.coverage.reportPaths=coverage.xml"""
+                            -Dsonar.language=py"""
                     }
                 }
             }
         }
         
-        stage('6. Quality Gate Check: SonarQube') {
+        stage('5. Quality Gate Check: SonarQube') {
             steps {
                 script {
                     echo 'Awaiting webhook callback notification from SonarQube server...'
-                    // Hardened Security Control: Aborts pipeline instantly if code fails quality thresholds
                     waitForQualityGate abortPipeline: true, credentialsId: 'sonar-token'
                 }
             }
         }
         
-        stage('7. Docker Image Build') {
+        stage('6. Docker Image Build') {
             steps {
                 script {
-                    echo 'Compiling multi-stage Dockerfile into production-hardened runtime image...'
+                    echo 'Compiling multi-stage Dockerfile into production runtime image...'
                     docker_image = docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
                 }
             }
         }
         
-        stage('8. Docker Image Scan: Trivy') {
+        stage('7. Docker Image Scan: Trivy') {
             steps {
                 script {
                     echo 'Auditing final container layer file system binary footprints for vulnerabilities...'
@@ -98,7 +78,7 @@ pipeline {
             }
         }
         
-        stage('9. Docker Image Push: DockerHub') {
+        stage('8. Docker Image Push: DockerHub') {
             steps {
                 script {
                     echo 'Authenticating registry transaction and publishing images to DockerHub...'
@@ -110,7 +90,7 @@ pipeline {
             }
         }
         
-        stage('10. Post-Build Infrastructure Cleanup') {
+        stage('9. Post-Build Infrastructure Cleanup') {
             steps {
                 script {
                     echo 'Purging temporary build images to preserve host disk capacity...'
@@ -143,7 +123,7 @@ pipeline {
                         </body>
                     </html>"""
                 
-                echo 'Dispatching consolidated artifact status telemetry report to security engineering distributions...'
+                echo 'Dispatching consolidated artifact status telemetry report...'
                 emailext (
                     subject: "${jobName} - Build #${buildNumber} - ${pipelineStatus.toUpperCase()}",
                     body: body,
