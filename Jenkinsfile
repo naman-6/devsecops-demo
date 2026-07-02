@@ -39,7 +39,6 @@ pipeline {
             steps {
                 script {
                     echo 'Injecting code artifacts into SonarQube server...'
-                    // Must match the system server profile name inside Manage Jenkins -> System
                     withSonarQubeEnv('sonarqube-server') {
                         sh """${SCANNER_HOME}/bin/sonar-scanner \
                             -Dsonar.projectName=${APP_NAME} \
@@ -97,42 +96,6 @@ pipeline {
                     sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG}"
                     sh "docker rmi ${IMAGE_NAME}:latest"
                 }
-            }
-        }
-    }
-    
-    post {
-        always {
-            script {
-                def jobName        = env.JOB_NAME
-                def buildNumber    = env.BUILD_NUMBER
-                def pipelineStatus = currentBuild.result ?: 'SUCCESS'
-                def bannerColor    = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
-                
-                def body = """
-                    <html>
-                        <body style="font-family: Arial, sans-serif;">
-                            <div style="border: 4px solid ${bannerColor}; padding: 15px; border-radius: 5px;">
-                                <h2 style="color: #333;">${jobName} - Build #${buildNumber}</h2>
-                                <div style="background-color: ${bannerColor}; padding: 10px; margin-bottom: 15px;">
-                                    <h3 style="color: white; margin: 0;">Pipeline Execution Result: ${pipelineStatus.toUpperCase()}</h3>
-                                </div>
-                                <p>The DevSecOps pipeline compilation has concluded. You can review detailed console trace transcripts and metrics directly inside the automation environment interface.</p>
-                                <p>Access explicit build pathing logs: <a href="${BUILD_URL}">Console Output Link</a></p>
-                            </div>
-                        </body>
-                    </html>"""
-                
-                echo 'Dispatching consolidated artifact status telemetry report...'
-                emailext (
-                    subject: "${jobName} - Build #${buildNumber} - ${pipelineStatus.toUpperCase()}",
-                    body: body,
-                    to: 'itsmenaman06@gmail.com',
-                    from: 'naman.xy6@gmail.com',
-                    replyTo: 'naman.xy6@gmail.com',
-                    mimeType: 'text/html',
-                    attachmentsPattern: 'trivy-file-scan-report.html, trivy-docker-scan-report.html'
-                )
             }
         }
     }
